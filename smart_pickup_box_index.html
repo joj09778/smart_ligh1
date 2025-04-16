@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>스마트 픽업 박스</title>
+  <style>
+    body {  
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding-top: 40px;
+      background-color: #f0f4f8;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    .hidden {
+      display: none;
+    }
+    .field-label {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 시리얼 넘버 입력 -->
+  <div class="container" id="serial-section">
+    <h1>제품 인증</h1>
+    <label class="field-label">제품 시리얼 넘버</label>
+    <input type="text" id="serialNumber" />
+    <button onclick="handleSerial()">다음</button>
+  </div>
+
+  <!-- 설정 섹션 -->
+  <div class="container hidden" id="setup-section">
+    <h1>처음 설정</h1>
+    <label class="field-label">배송지 주소</label>
+    <input type="text" id="address" placeholder="주소지를 입력하세요" />
+    <label class="field-label">인증번호 (4자리)</label>
+    <input type="password" id="code" maxlength="4" placeholder="예: 1234" />
+    <label class="field-label">사용자 비밀번호</label>
+    <input type="password" id="userPw" placeholder="비밀번호 설정" />
+    <button onclick="saveInitialSettings()">설정 완료</button>
+  </div>
+
+  <!-- 인증 섹션 -->
+  <div class="container hidden" id="auth-section">
+    <h1>인증하기</h1>
+    <label class="field-label">인증번호</label>
+    <input type="password" id="inputCode" maxlength="4" placeholder="택배기사용" />
+    <label class="field-label">사용자 비밀번호</label>
+    <input type="password" id="inputPw" placeholder="사용자용" />
+    <button onclick="verifyAccess()">확인</button>
+  </div>
+
+  <!-- 배송 정보 섹션 -->
+  <div class="container hidden" id="delivery-info-section">
+    <h1>배송 정보</h1>
+    <p id="display-address"></p>
+    <p id="display-order"></p>
+    <button onclick="goToAuth()">돌아가기</button>
+  </div>
+
+  <!-- 주문 입력 섹션 -->
+  <div class="container hidden" id="order-entry-section">
+    <h1>주문한 물건 입력</h1>
+    <input type="text" id="orderItem" placeholder="예: 무선 마우스 1개" />
+    <button onclick="saveOrder()">저장</button>
+    <button onclick="resetOrder()">주문 초기화</button>
+  </div>
+
+  <script>
+    let currentSerial = "";
+    let order = "";
+    let storage = {}; // 시리얼 넘버별 데이터 저장
+
+    function handleSerial() {
+      currentSerial = document.getElementById("serialNumber").value.trim();
+      if (!currentSerial) {
+        alert("시리얼 넘버를 입력해주세요.");
+        return;
+      }
+
+      const data = storage[currentSerial];
+
+      if (data) {
+        document.getElementById("serial-section").classList.add("hidden");
+        document.getElementById("auth-section").classList.remove("hidden");
+      } else {
+        document.getElementById("serial-section").classList.add("hidden");
+        document.getElementById("setup-section").classList.remove("hidden");
+      }
+    }
+
+    function saveInitialSettings() {
+      const address = document.getElementById("address").value;
+      const code = document.getElementById("code").value;
+      const userPw = document.getElementById("userPw").value;
+
+      if (!address || !code || !userPw) {
+        alert("모든 정보를 입력해주세요.");
+        return;
+      }
+
+      // 시리얼에 해당하는 데이터 저장
+      storage[currentSerial] = { address, code, userPw, order: "" };
+
+      document.getElementById("setup-section").classList.add("hidden");
+      document.getElementById("auth-section").classList.remove("hidden");
+    }
+
+    function verifyAccess() {
+      const inputCode = document.getElementById("inputCode").value;
+      const inputPw = document.getElementById("inputPw").value;
+      const data = storage[currentSerial];
+
+      if (!data) {
+        alert("시리얼 넘버가 유효하지 않습니다.");
+        return;
+      }
+
+      if (inputCode === data.code) {
+        document.getElementById("auth-section").classList.add("hidden");
+        document.getElementById("delivery-info-section").classList.remove("hidden");
+        document.getElementById("display-address").innerText = "배송지: " + data.address;
+        document.getElementById("display-order").innerText = "주문한 물건: " + (data.order || "없습니다.");
+      } else if (inputPw === data.userPw) {
+        document.getElementById("auth-section").classList.add("hidden");
+        document.getElementById("order-entry-section").classList.remove("hidden");
+        document.getElementById("orderItem").value = data.order || "";
+      } else {
+        alert("인증 실패. 다시 확인하세요.");
+      }
+    }
+
+    function saveOrder() {
+      const item = document.getElementById("orderItem").value;
+      storage[currentSerial].order = item;
+      alert("저장되었습니다.");
+      document.getElementById("order-entry-section").classList.add("hidden");
+      document.getElementById("auth-section").classList.remove("hidden");
+    }
+
+    function resetOrder() {
+      storage[currentSerial].order = "";
+      document.getElementById("orderItem").value = "";
+      alert("주문한 물건이 초기화되었습니다.");
+    }
+
+    function goToAuth() {
+      document.getElementById("delivery-info-section").classList.add("hidden");
+      document.getElementById("auth-section").classList.remove("hidden");
+    }
+  </script>
+</body>
+</html>
